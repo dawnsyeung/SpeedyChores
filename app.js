@@ -68,6 +68,7 @@ if (FIREBASE_READY && typeof firebase !== "undefined") {
   } catch (e) { console.warn("Firebase init failed, using demo mode:", e); fdb = null; }
 }
 const DEMO = !fdb;
+const fauth = (!DEMO && typeof firebase !== "undefined" && firebase.auth) ? firebase.auth() : null;
 const LS_KEY = "speedychoresDemoDB_v1";
 
 function lsRead() {
@@ -252,13 +253,59 @@ function renderLogin() {
     b.onclick = () => startPin({ id, role: "kid", name: k.name });
     grid.appendChild(b);
   });
-  const p = document.createElement("button");
-  p.className = "profile-card parent";
-  p.innerHTML = `<span class="p-emoji">👩‍💼</span>Parent<span class="p-sub">Dashboard · payouts · settings</span>`;
-  p.onclick = () => startPin({ id: "parent", role: "parent", name: "Parent" });
-  grid.appendChild(p);
   $("pinWrap").hidden = true;
+  $("kidCreateForm").hidden = true;
+  // parent Gmail account status
+  const note = $("parentGmailNote");
+  const gbtn = $("googleSignIn");
+  if (fauth && fauth.currentUser) {
+    gbtn.textContent = `✅ Signed in as ${fauth.currentUser.email}`;
+    note.textContent = "Tap to open the parent dashboard.";
+  } else {
+    gbtn.textContent = "📧 Sign in with Google";
+    note.textContent = CFG.parentGmail ? `Registered parent: ${CFG.parentGmail}` : "No parent registered yet — be the first!";
+  }
 }
+$("googleSignIn").onclick = async () => {
+  if (fauth && fauth.currentUser) {
+    // already signed in -> make sure the parent Gmail is registered, then open dashboard
+    const em = fauth.currentUser.email || "";
+    if (em && (!CFG.parentGmail || CFG.parentGmail.toLowerCase() !== em.toLowerCase())) {
+      CFG.parentGmail = em;
+      await DB.set("config", CFG);
+    }
+    SESSION = { id: "parent", role: "parent" };
+    sessionStorage.setItem("sc_session", JSON.stringify(SESSION));
+    bootRole();
+    return;
+  }
+  if (!fauth) { toast("Google sign-in isn't ready — check your connection 🙂"); return; }
+  sessionStorage.setItem("sc_parent_intent", "1");
+  fauth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
+};
+$("newKidBtn").onclick = () => { $("kidCreateForm").hidden = !$("kidCreateForm").hidden; };
+$("createKidBtn").onclick = async () => {
+  const name = $("newKidName").value.trim();
+  const pin = $("newKidPin").value.trim();
+  const practice = $("newKidPractice").value.trim() || "Practice 🎯";
+  const gmail = $("newKidGmail").value.trim().toLowerCase();
+  if (!name) { toast("Enter your first name 🙂"); return; }
+  if (!/^\d{4}$/.test(pin)) { toast("PIN must be 4 digits 🙂"); return; }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(gmail)) { toast("Enter your parent's Gmail 🙂"); return; }
+  const pg = (CFG.parentGmail || "").toLowerCase();
+  if (!pg) { toast("A parent needs to sign in with Google first 🙂"); return; }
+  if (gmail !== pg) { toast("That Gmail doesn't match your parent's — ask them 🙂"); return; }
+  const dupe = Object.values(CFG.kids).some((k) => k.name.toLowerCase() === name.toLowerCase());
+  if (dupe) { toast("That name is already taken 🙂"); return; }
+  const id = "kid-" + uid();
+  CFG.kids[id] = { name, pin, grade: "", emoji: "⭐", practice };
+  await DB.set("config", CFG);
+  ["newKidName", "newKidPin", "newKidPractice", "newKidGmail"].forEach((f) => ($(f).value = ""));
+  SESSION = { id, role: "kid" };
+  sessionStorage.setItem("sc_session", JSON.stringify(SESSION));
+  toast(`Welcome, ${name}! 🎉`);
+  bootRole();
+};
 
 function startPin(target) {
   pinTarget = target; pinBuf = "";
@@ -290,6 +337,7 @@ $("pinPad").addEventListener("click", async (e) => {
 
 function logout() {
   SESSION = null; sessionStorage.removeItem("sc_session");
+  if (fauth) fauth.signOut().catch(() => {});
   detachAll(); renderLogin();
 }
 $("kidSwitch").onclick = logout;
@@ -307,7 +355,15 @@ function bootRole() {
   DB.on("config", (v) => { if (v) { CFG = v; } });
   if (!SESSION) return renderLogin();
   if (SESSION.role === "kid") { showView("view-kid"); kidTabs(); renderKid(); }
-  else { showView("view-parent"); parTabs(); renderParent(); }
+  else {
+    // parent area requires a Google (Gmail) sign-in — this is the parent gate
+    if (!fauth || !fauth.currentUser) {
+      SESSION = null; sessionStorage.removeItem("sc_session");
+      toast("Parents sign in with their Gmail 🙂");
+      return renderLogin();
+    }
+    showView("view-parent"); parTabs(); renderParent();
+  }
 }
 
 /* ============================== kid: today ============================== */
@@ -810,7 +866,6 @@ function renderSettings() {
   Object.entries(c.kids).forEach(([id, k]) => {
     pf.insertAdjacentHTML("beforeend", `<label class="fld">${esc(k.name)} PIN <input data-pin="${id}" maxlength="4" value="${esc(k.pin)}"></label>`);
   });
-  pf.insertAdjacentHTML("beforeend", `<label class="fld">Parent PIN <input data-pin="parent" maxlength="4" value="${esc(c.parentPin)}"></label>`);
   paintTplList("choreTplList", c.templates.dailyChores, "dailyChores");
   paintTplList("routineTplList", c.templates.routineItems, "routineItems");
   paintRewardList();
@@ -880,5 +935,22 @@ $("saveSettings").onclick = async () => {
   $("demoBanner").hidden = !DEMO;
   await ensureSeed();
   CFG = await DB.get("config");
+  // resolve Google redirect sign-in (parent Gmail account)
+  if (fauth) {
+    try { await fauth.getRedirectResult(); } catch (e) { console.warn("redirect result:", e); }
+    if (!fauth.currentUser) {
+      await new Promise((res) => { const un = fauth.onAuthStateChanged((u) => { un(); res(u); }); });
+    }
+    const u = fauth.currentUser;
+    if (u && sessionStorage.getItem("sc_parent_intent")) {
+      sessionStorage.removeItem("sc_parent_intent");
+      if ((u.email || "") && (!CFG.parentGmail || CFG.parentGmail.toLowerCase() !== u.email.toLowerCase())) {
+        CFG.parentGmail = u.email;
+        await DB.set("config", CFG);
+      }
+      SESSION = { id: "parent", role: "parent" };
+      sessionStorage.setItem("sc_session", JSON.stringify(SESSION));
+    }
+  }
   bootRole();
 })();

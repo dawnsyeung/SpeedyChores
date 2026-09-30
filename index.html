@@ -8,6 +8,7 @@
 <!-- Firebase (compat build = no build step needed, works as a plain static site) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 </head>
 <body>
 
@@ -25,7 +26,26 @@
       <p class="tagline">Homework. Chores. Real money. 💰</p>
     </header>
     <h2 class="section-title">Who's checking in?</h2>
+    <h3 class="mini-head">🧒 Kids</h3>
     <div id="profileGrid" class="profile-grid"></div>
+    <button id="newKidBtn" class="small-btn">＋ Create kid account</button>
+
+    <div id="kidCreateForm" class="card" hidden>
+      <h3>🧒 Create your kid account</h3>
+      <label class="fld">Your first name <input id="newKidName" placeholder="e.g. Henry" autocomplete="off"></label>
+      <label class="fld">Pick a 4-digit PIN <input id="newKidPin" maxlength="4" inputmode="numeric" placeholder="••••" autocomplete="off"></label>
+      <label class="fld">Practice (instrument, sport…) <input id="newKidPractice" placeholder="e.g. Violin" autocomplete="off"></label>
+      <label class="fld">Your parent's Gmail <input id="newKidGmail" type="email" placeholder="parent@gmail.com" autocomplete="off"></label>
+      <p class="muted-sm">🔒 You need your parent's Gmail to create an account — it must match the parent signed in below.</p>
+      <button id="createKidBtn" class="small-btn">Create my account ✅</button>
+    </div>
+
+    <h3 class="mini-head">👩‍💼 Parents</h3>
+    <div class="card">
+      <p class="muted-sm">Parents sign in with their Gmail — this unlocks the dashboard, payouts, reports &amp; settings.</p>
+      <button id="googleSignIn" class="big-btn">📧 Sign in with Google</button>
+      <div id="parentGmailNote" class="muted-sm"></div>
+    </div>
 
     <div id="pinWrap" class="pin-wrap" hidden>
       <h3 id="pinTitle">Enter PIN</h3>

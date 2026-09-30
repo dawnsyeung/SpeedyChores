@@ -149,3 +149,9 @@ table.rep th{background:#efeafc;}
 .feedback-box textarea{width:100%; box-sizing:border-box; font:inherit; padding:10px 12px;
   border:2px solid var(--line, #e5e0d5); border-radius:12px; margin:8px 0; resize:vertical;}
 .feedback-box .small-btn{margin-top:2px;}
+
+/* login: account sections */
+.mini-head{font-size:.95rem; font-weight:800; margin:18px 4px 8px; opacity:.85;}
+#newKidBtn{margin:6px 4px 0;}
+#kidCreateForm{margin-top:12px;}
+#googleSignIn{width:100%; margin-top:6px;}
