@@ -93,6 +93,10 @@ h1,h2,h3{margin:.6em 0 .4em;}
 .skip-reason{font-size:.78rem; color:var(--muted); font-style:italic; padding:0 6px 8px;}
 .add-row{display:flex; gap:8px; margin-top:10px;}
 .add-row input{flex:1; border:2px solid #e6e2f7; border-radius:12px; padding:10px; font-size:.95rem;}
+.add-row .add-subject{flex:.7;}
+.inline-editor{display:flex; gap:8px; margin:8px 0 4px; padding:0 2px;}
+.inline-editor input{flex:1; border:2px solid #e6e2f7; border-radius:12px; padding:10px; font-size:.95rem; min-width:0;}
+.inline-editor .cancel-btn{background:#efeaf9; color:var(--ink); border:none; border-radius:12px; padding:10px 14px; font-weight:700; cursor:pointer;}
 .small-btn{background:var(--pri); color:#fff; border:none; border-radius:12px; padding:10px 14px; font-weight:700; cursor:pointer;}
 .big-btn{
   width:100%; border:none; border-radius:var(--radius); padding:16px; font-size:1.1rem; font-weight:800;

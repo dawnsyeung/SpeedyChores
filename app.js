@@ -419,11 +419,21 @@ function setItemState(listName, id, field, value, reason = "") {
   DB.set(`days/${WORK.date}/${WORK.kidId}`, WORK); // live autosave
 }
 
-function askReason(label, cb) {
-  const r = prompt(`Why are you skipping "${label}"? (required)`);
-  if (r === null) return; // cancelled
-  if (!r.trim()) { toast("Please give a reason 🙂"); return; }
-  cb(r.trim());
+/* Inline editors (no native prompt dialogs — kid-friendly on touch devices). */
+function inlineEditor(wrap, { placeholder, value = "", inputType = "text", saveText = "Save", onSave }) {
+  const old = wrap.querySelector(".inline-editor"); if (old) old.remove();
+  const ed = document.createElement("div");
+  ed.className = "inline-editor";
+  ed.innerHTML = `<input type="${inputType}" placeholder="${esc(placeholder)}" value="${esc(String(value))}">` +
+    `<button class="small-btn">${esc(saveText)}</button><button class="cancel-btn">Cancel</button>`;
+  const inp = ed.querySelector("input");
+  const [btnSave, btnCancel] = ed.querySelectorAll("button");
+  btnSave.onclick = () => onSave(inp.value.trim(), ed);
+  btnCancel.onclick = () => ed.remove();
+  inp.onkeydown = (e) => { if (e.key === "Enter") btnSave.onclick(); };
+  wrap.appendChild(ed);
+  inp.focus();
+  return ed;
 }
 
 function itemRow(listName, it, opts = {}) {
@@ -441,9 +451,18 @@ function itemRow(listName, it, opts = {}) {
   bD.textContent = "✅ Done";
   bD.disabled = WORK.status === "submitted";
   bD.onclick = () => {
+    if (WORK.status === "submitted") return;
     if (opts.askMinutes && !it.done) {
-      const m = prompt(`How many minutes of ${it.label}?`, it.minutes || "30");
-      if (m !== null && !isNaN(Number(m))) it.minutes = Math.max(0, Math.round(Number(m)));
+      inlineEditor(wrap, {
+        placeholder: `Minutes of ${it.label}?`, value: it.minutes || 30, inputType: "number", saveText: "Done ✓",
+        onSave: (v, ed) => {
+          const m = Number(v);
+          it.minutes = (!v || isNaN(m)) ? (it.minutes || 30) : Math.max(0, Math.round(m));
+          ed.remove();
+          setItemState(listName, it.id, "done", true);
+        }
+      });
+      return;
     }
     setItemState(listName, it.id, "done", !it.done);
   };
@@ -452,8 +471,16 @@ function itemRow(listName, it, opts = {}) {
   bS.textContent = "📝 Skip";
   bS.disabled = WORK.status === "submitted";
   bS.onclick = () => {
-    if (it.skipped) setItemState(listName, it.id, "skipped", false);
-    else askReason(it.label, (reason) => setItemState(listName, it.id, "skipped", true, reason));
+    if (WORK.status === "submitted") return;
+    if (it.skipped) { setItemState(listName, it.id, "skipped", false); return; }
+    inlineEditor(wrap, {
+      placeholder: `Why skip "${it.label}"? (required)`, saveText: "Save skip",
+      onSave: (v, ed) => {
+        if (!v) { toast("Please give a reason 🙂"); return; }
+        ed.remove();
+        setItemState(listName, it.id, "skipped", true, v);
+      }
+    });
   };
   acts.append(bD, bS); row.appendChild(acts); wrap.appendChild(row);
   if (it.skipped && it.skipReason) {
@@ -472,17 +499,22 @@ function groupCard(title, emoji, listName, items, opts = {}) {
   if (opts.add) {
     const add = document.createElement("div");
     add.className = "add-row";
-    add.innerHTML = `<input placeholder="${esc(opts.add)}"><button class="small-btn">＋ Add</button>`;
-    const [inp, btn] = [add.querySelector("input"), add.querySelector("button")];
+    add.innerHTML = `<input class="add-label" placeholder="${esc(opts.add)}">` +
+      (opts.addSubject ? `<input class="add-subject" placeholder="Subject? (e.g. Math)">` : "") +
+      `<button class="small-btn">＋ Add</button>`;
+    const inp = add.querySelector(".add-label");
+    const subjInp = add.querySelector(".add-subject");
+    const btn = add.querySelector("button");
     const doAdd = () => {
       const v = inp.value.trim(); if (!v || WORK.status === "submitted") return;
-      let subj = "";
-      if (opts.addSubject) { subj = prompt("Subject? (e.g. Math, Reading)") || ""; }
+      const subj = subjInp ? subjInp.value.trim() : "";
       WORK[listName].push({ id: uid(), label: v, subject: subj, done: false, skipped: false, skipReason: "" });
       DB.set(`days/${WORK.date}/${WORK.kidId}`, WORK);
+      inp.value = ""; if (subjInp) subjInp.value = "";
     };
     btn.onclick = doAdd;
     inp.onkeydown = (e) => { if (e.key === "Enter") doAdd(); };
+    if (subjInp) subjInp.onkeydown = (e) => { if (e.key === "Enter") doAdd(); };
     card.appendChild(add);
   }
   return card;
