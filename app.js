@@ -488,6 +488,26 @@ $("submitDay").onclick = async () => {
   toast(`🎉 +${money(sc.money)} · +${sc.points} pts!`);
 };
 
+/* ---- kid feedback flags -> Glimmer (duty mismatches, notes) ---- */
+$("fbSend").onclick = async () => {
+  const ta = $("fbText");
+  const msg = ta.value.trim();
+  if (!msg) { toast("Write what doesn't match first 🙂"); return; }
+  if (!SESSION || SESSION.role !== "kid") { toast("Log in as a kid to send feedback 🙂"); return; }
+  const id = uid();
+  await DB.set("feedback/" + id, {
+    id,
+    kidId: SESSION.id,
+    kidName: CFG.kids[SESSION.id].name,
+    date: todayStr(),
+    message: msg,
+    status: "new",
+    createdAt: new Date().toISOString()
+  });
+  ta.value = "";
+  toast("📨 Sent to Glimmer! She'll sort it out with Mom.");
+};
+
 /* ============================== kid: week / board / rewards ============================== */
 async function renderKidWeek() {
   const wk = weekKey(todayStr());
@@ -712,6 +732,26 @@ async function renderReports() {
   const date = $("repDate").value || todayStr();
   $("repDate").value = date;
   const wrap = $("repTables"); wrap.innerHTML = "";
+
+  // kid feedback flags (duty mismatches, notes for Glimmer) — newest first
+  const fbAll = (await DB.get("feedback")) || {};
+  const fbItems = Object.values(fbAll).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const fbOpen = fbItems.filter((x) => x.status === "new");
+  const fw = $("repFeedback"); fw.innerHTML = `<h3>📣 Kid flags${fbOpen.length ? ` (${fbOpen.length} new)` : ""}</h3>`;
+  if (!fbItems.length) fw.insertAdjacentHTML("beforeend", `<p class="muted">No flags yet. 🎉</p>`);
+  fbItems.slice(0, 20).forEach((x) => {
+    const d = document.createElement("div");
+    d.className = "card" + (x.status === "new" ? "" : " muted");
+    d.innerHTML = `<b>${esc(x.kidName || x.kidId)}</b> <span class="muted-sm">${esc(x.date || "")}</span> ` +
+      (x.status === "new" ? `<span class="pill">NEW</span>` : `<span class="pill approved">resolved</span>`) +
+      `<p>${esc(x.message)}</p>`;
+    if (x.status === "new") {
+      const b = document.createElement("button"); b.className = "small-btn"; b.textContent = "Mark resolved ✔️";
+      b.onclick = async () => { await DB.update("feedback/" + x.id, { status: "resolved" }); renderReports(); };
+      d.appendChild(b);
+    }
+    fw.appendChild(d);
+  });
   for (const [id, k] of Object.entries(CFG.kids)) {
     const r = await DB.get(`days/${date}/${id}`);
     const h = document.createElement("div"); h.className = "rep-kid"; h.textContent = `${k.emoji} ${k.name}`;

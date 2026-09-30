@@ -71,6 +71,12 @@
       <div id="missionGroups"></div>
       <button id="submitDay" class="big-btn" disabled>🔒 Finish all items to submit</button>
       <div id="submittedNote" class="submitted-note" hidden></div>
+      <div class="card feedback-box">
+        <h3>📣 Something not matching?</h3>
+        <p class="muted-sm">If a chore or duty here doesn't match what you actually do, tell Glimmer — she reads these and sorts it out with Mom.</p>
+        <textarea id="fbText" rows="2" placeholder="e.g. Taking out trash isn't my job — that's Felix's"></textarea>
+        <button id="fbSend" class="small-btn">Send to Glimmer 📨</button>
+      </div>
     </div>
 
     <!-- MY WEEK -->
@@ -148,6 +154,7 @@
 
     <div id="par-reports" class="tabpane" hidden>
       <h2>📊 Reports</h2>
+      <div id="repFeedback"></div>
       <label class="fld">Day <input type="date" id="repDate"></label>
       <div id="repTables"></div>
     </div>
