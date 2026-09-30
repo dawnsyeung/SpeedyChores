@@ -505,7 +505,7 @@ $("fbSend").onclick = async () => {
     createdAt: new Date().toISOString()
   });
   ta.value = "";
-  toast("📨 Sent to Glimmer! She'll sort it out with Mom.");
+  toast("📨 Sent to your parents!");
 };
 
 /* ============================== kid: week / board / rewards ============================== */
