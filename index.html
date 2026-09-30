@@ -1,488 +1,224 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SpeedyChores</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SpeedyChores — Family Mission Control</title>
+<link rel="stylesheet" href="style.css">
+<!-- Firebase (compat build = no build step needed, works as a plain static site) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 </head>
 <body>
-    <!-- Home Page -->
-    <div id="homePage" class="home-page">
-        <div class="home-content">
-            <button id="startChoresBtn" class="start-chores-btn">Come help me with the chores!</button>
-        </div>
+
+<div id="demoBanner" class="demo-banner" hidden>
+  🧪 DEMO MODE — add your Firebase keys in <b>firebase-config.js</b> to sync across devices
+</div>
+
+<div id="app">
+
+  <!-- ================= LOGIN ================= -->
+  <section id="view-login" class="view">
+    <header class="hero">
+      <div class="hero-emoji">⚡</div>
+      <h1>SpeedyChores</h1>
+      <p class="tagline">Homework. Chores. Real money. 💰</p>
+    </header>
+    <h2 class="section-title">Who's checking in?</h2>
+    <div id="profileGrid" class="profile-grid"></div>
+
+    <div id="pinWrap" class="pin-wrap" hidden>
+      <h3 id="pinTitle">Enter PIN</h3>
+      <div id="pinDots" class="pin-dots"><span></span><span></span><span></span><span></span></div>
+      <div class="pin-pad" id="pinPad">
+        <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+        <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+        <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+        <button data-k="clear" class="pin-fn">⌫</button><button data-k="0">0</button><button data-k="cancel" class="pin-fn">✕</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= KID ================= -->
+  <section id="view-kid" class="view" hidden>
+    <header class="topbar">
+      <div>
+        <div id="kidGreeting" class="greeting">Hey! 👋</div>
+        <div id="kidStreak" class="streak-line"></div>
+      </div>
+      <div class="topbar-actions">
+        <button id="kidSwitch" class="icon-btn" title="Switch profile">🔄</button>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button data-tab="today" class="tab active">📋 Today</button>
+      <button data-tab="week" class="tab">📅 My Week</button>
+      <button data-tab="board" class="tab">🏆 Family</button>
+      <button data-tab="rewards" class="tab">🎁 Rewards</button>
+    </nav>
+
+    <!-- TODAY: mandatory mission checklist -->
+    <div id="kid-today" class="tabpane">
+      <div class="mission-head">
+        <h2>🎯 Today's Mission</h2>
+        <p class="muted">Mark <b>everything</b> — done ✅ or skipped with a reason 📝 — then hit <b>Done for today</b>.</p>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div id="missionFill" class="progress-fill"></div></div>
+        <div id="missionText" class="progress-text">0 of 0 resolved</div>
+      </div>
+      <div id="missionGroups"></div>
+      <button id="submitDay" class="big-btn" disabled>🔒 Finish all items to submit</button>
+      <div id="submittedNote" class="submitted-note" hidden></div>
     </div>
 
-    <!-- Main App (Hidden Initially) -->
-    <div id="mainApp" class="main-app" style="display: none;">
-        <div class="container">
-        <header>
-            <h1>🏠 Chore Tracker</h1>
-            <p>Keep track of your household tasks</p>
-            <div class="name-input-section">
-                <label for="userName">Your Name:</label>
-                <input type="text" id="userName" placeholder="Enter your name..." maxlength="20">
-            </div>
-            <div class="family-selector">
-                <label for="familyMember">Playing as:</label>
-                <select id="familyMember">
-                    <option value="parent">👨‍👩‍👧‍👦 Parent</option>
-                    <option value="little2">👶 Little One</option>
-                </select>
-            </div>
-        </header>
-        
-        <div class="add-chore">
-            <input type="text" id="choreInput" placeholder="Add a new chore..." maxlength="100">
-            <select id="choreCategory">
-                <option value="general">General Chore</option>
-                <option value="dishes">🍽️ Dishes</option>
-                <option value="table">🪑 Table Cleaning</option>
-                <option value="bathroom">🚿 Bathroom</option>
-                <option value="bedroom">🛏️ Bedroom</option>
-                <option value="livingroom">🛋️ Living Room</option>
-                <option value="kitchen">👨‍🍳 Kitchen</option>
-                <option value="laundry">👕 Laundry</option>
-                <option value="garden">🌱 Garden</option>
-                <option value="garage">🚗 Garage</option>
-                <option value="office">💼 Office</option>
-                <option value="gaming">🎮 Gaming</option>
-                <option value="race">🏁 Race</option>
-                <option value="pool">🏊 Pool</option>
-                <option value="violin">🎻 Violin</option>
-                <option value="piano">🎹 Piano</option>
-            </select>
-            <select id="chorePriority">
-                <option value="low">🟢 Low</option>
-                <option value="medium">🟡 Medium</option>
-                <option value="high">🔴 High</option>
-            </select>
-            <button id="addBtn">Add Chore</button>
-        </div>
-        
-        <div class="quick-add">
-            <h4>Quick Add Common Chores:</h4>
-            <div class="quick-buttons">
-                <button class="quick-btn" data-chore="Wash dishes" data-category="dishes">🍽️ Wash Dishes</button>
-                <button class="quick-btn" data-chore="Clean dining table" data-category="table">🪑 Clean Table</button>
-                <button class="quick-btn" data-chore="Clean bathroom" data-category="bathroom">🚿 Clean Bathroom</button>
-                <button class="quick-btn" data-chore="Make bed" data-category="bedroom">🛏️ Make Bed</button>
-                <button class="quick-btn" data-chore="Vacuum living room" data-category="livingroom">🛋️ Vacuum</button>
-                <button class="quick-btn" data-chore="Do laundry" data-category="laundry">👕 Do Laundry</button>
-                <button class="quick-btn" data-chore="Water plants" data-category="garden">🌱 Water Plants</button>
-                <button class="quick-btn" data-chore="Organize garage" data-category="garage">🚗 Organize Garage</button>
-                <button class="quick-btn" data-chore="Win a race" data-category="race">🏁 Win Race</button>
-                <button class="quick-btn" data-chore="Do pool" data-category="pool">🏊 Do Pool</button>
-                <button class="quick-btn" data-chore="Practice violin" data-category="violin">🎻 Practice Violin</button>
-                <button class="quick-btn" data-chore="Practice piano" data-category="piano">🎹 Practice Piano</button>
-                <button class="quick-btn" data-chore="Taking out garbage Sunday" data-category="general">🗑️ Take Out Garbage</button>
-                <button class="quick-btn" data-chore="Taking care of the animals" data-category="general">🐾 Care for Animals</button>
-                <button class="quick-btn" data-chore="Sweep floors" data-category="general">🧹 Sweep Floors</button>
-                <button class="quick-btn" data-chore="Mop floors" data-category="general">🧽 Mop Floors</button>
-                <button class="quick-btn" data-chore="Clean windows" data-category="general">🪟 Clean Windows</button>
-                <button class="quick-btn" data-chore="Dust furniture" data-category="general">✨ Dust Furniture</button>
-                <button class="quick-btn" data-chore="Take out trash" data-category="general">🗑️ Take Out Trash</button>
-                <button class="quick-btn" data-chore="Feed pets" data-category="general">🐕 Feed Pets</button>
-                <button class="quick-btn" data-chore="Walk the dog" data-category="general">🐕 Walk Dog</button>
-                <button class="quick-btn" data-chore="Clean car" data-category="garage">🚗 Clean Car</button>
-                <button class="quick-btn" data-chore="Organize closet" data-category="bedroom">👕 Organize Closet</button>
-                <button class="quick-btn" data-chore="Clean mirrors" data-category="bathroom">🪞 Clean Mirrors</button>
-                <button class="quick-btn" data-chore="Empty dishwasher" data-category="kitchen">🍽️ Empty Dishwasher</button>
-                <button class="quick-btn" data-chore="Load dishwasher" data-category="kitchen">🍽️ Load Dishwasher</button>
-                <button class="quick-btn" data-chore="Clean microwave" data-category="kitchen">🍽️ Clean Microwave</button>
-                <button class="quick-btn" data-chore="Wipe counters" data-category="kitchen">👨‍🍳 Wipe Counters</button>
-                <button class="quick-btn" data-chore="Vacuum stairs" data-category="general">🛋️ Vacuum Stairs</button>
-                <button class="quick-btn" data-chore="Clean baseboards" data-category="general">🧹 Clean Baseboards</button>
-                <button class="quick-btn" data-chore="Change bed sheets" data-category="bedroom">🛏️ Change Sheets</button>
-                <button class="quick-btn" data-chore="Fold laundry" data-category="laundry">👕 Fold Laundry</button>
-                <button class="quick-btn" data-chore="Iron clothes" data-category="laundry">👔 Iron Clothes</button>
-                <button class="quick-btn" data-chore="Clean toilet" data-category="bathroom">🚿 Clean Toilet</button>
-                <button class="quick-btn" data-chore="Clean shower" data-category="bathroom">🚿 Clean Shower</button>
-                <button class="quick-btn" data-chore="Water garden" data-category="garden">🌱 Water Garden</button>
-                <button class="quick-btn" data-chore="Mow lawn" data-category="garden">🌱 Mow Lawn</button>
-                <button class="quick-btn" data-chore="Rake leaves" data-category="garden">🍂 Rake Leaves</button>
-                <button class="quick-btn" data-chore="Study for 30 minutes" data-category="office">📚 Study</button>
-                <button class="quick-btn" data-chore="Read for 20 minutes" data-category="general">📖 Read</button>
-                <button class="quick-btn" data-chore="Exercise for 30 minutes" data-category="general">💪 Exercise</button>
-                <button class="quick-btn" data-chore="Meditate for 10 minutes" data-category="general">🧘 Meditate</button>
-            </div>
-        </div>
-        
-        <div class="chore-stats">
-            <div class="stat">
-                <span class="stat-number" id="totalChores">0</span>
-                <span class="stat-label">Total</span>
-            </div>
-            <div class="stat">
-                <span class="stat-number" id="completedChores">0</span>
-                <span class="stat-label">Completed</span>
-            </div>
-            <div class="stat">
-                <span class="stat-number" id="remainingChores">0</span>
-                <span class="stat-label">Remaining</span>
-            </div>
-            <div class="stat">
-                <span class="stat-number" id="points">0</span>
-                <span class="stat-label">Points</span>
-            </div>
-            <div class="stat">
-                <span class="stat-number" id="streak">0</span>
-                <span class="stat-label">Streak</span>
-            </div>
-        </div>
-        
-        <div class="competition-section">
-            <div class="leaderboard">
-                <h3>🏆 Family Leaderboard</h3>
-                <div class="leaderboard-list" id="leaderboardList">
-                    <div class="leaderboard-item">
-                        <span class="rank">1st</span>
-                        <span class="player-name">👨‍👩‍👧‍👦 Parent</span>
-                        <span class="player-score" id="parentScore">0</span>
-                    </div>
-                    <div class="leaderboard-item">
-                        <span class="rank">2nd</span>
-                        <span class="player-name">👶 Little One</span>
-                        <span class="player-score" id="little2Score">0</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="weekly-challenge">
-                <h3>🎯 This Week's Challenge</h3>
-                <div class="challenge-content">
-                    <p id="challengeDescription">Complete 30 chores to win the week!</p>
-                    <div class="challenge-progress">
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="challengeProgress"></div>
-                        </div>
-                        <span class="progress-text" id="challengeText">0/30</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="special-stats">
-            <div class="special-stat-group" id="dishStats">
-                <div class="special-stat">
-                    <span class="special-stat-number" id="dishesWashed">0</span>
-                    <span class="special-stat-label">Dishes Washed</span>
-                </div>
-                <div class="special-stat">
-                    <span class="special-stat-number" id="dishStreak">0</span>
-                    <span class="special-stat-label">Dish Streak</span>
-                </div>
-            </div>
-            <div class="special-stat-group" id="tableStats">
-                <div class="special-stat">
-                    <span class="special-stat-number" id="tablesCleaned">0</span>
-                    <span class="special-stat-label">Tables Cleaned</span>
-                </div>
-                <div class="special-stat">
-                    <span class="special-stat-number" id="tableStreak">0</span>
-                    <span class="special-stat-label">Table Streak</span>
-                </div>
-            </div>
-        </div>
-        
-        <div class="gaming-timer-section">
-            <h3>🎮 Gaming Timer</h3>
-            <div class="gaming-timer-content">
-                <div class="timer-display">
-                    <div class="timer-circle">
-                        <span class="timer-text" id="gamingTimer">30:00</span>
-                    </div>
-                    <div class="timer-controls">
-                        <button id="startGamingBtn" class="timer-btn start-btn">Start Gaming</button>
-                        <button id="pauseGamingBtn" class="timer-btn pause-btn" disabled>Pause</button>
-                        <button id="stopGamingBtn" class="timer-btn stop-btn" disabled>Stop</button>
-                    </div>
-                </div>
-                <div class="gaming-info">
-                    <p>Complete 30 minutes of gaming to earn <strong>50 points</strong>! 🏆</p>
-                    <div class="gaming-stats">
-                        <span>Gaming Sessions: <strong id="gamingSessions">0</strong></span>
-                        <span>Total Gaming Time: <strong id="totalGamingTime">0h 0m</strong></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="chore-filters">
-            <button class="filter-btn active" data-filter="all">All</button>
-            <button class="filter-btn" data-filter="pending">Pending</button>
-            <button class="filter-btn" data-filter="completed">Completed</button>
-            <button class="filter-btn" data-filter="dishes">🍽️ Dishes</button>
-            <button class="filter-btn" data-filter="high">🔴 High Priority</button>
-            <button class="filter-btn" data-filter="today">📅 Today</button>
-        </div>
-        
-        <ul class="chore-list" id="choreList">
-            <!-- Chores will be added here dynamically -->
-        </ul>
-        
-        <div class="empty-state" id="emptyState">
-            <div class="empty-icon">📝</div>
-            <h3>No chores yet!</h3>
-            <p>Add your first chore to get started</p>
-        </div>
-        
-        <div class="rewards-section" id="rewardsSection">
-            <h3>🏆 Rewards & Consequences</h3>
-            <div class="rewards-grid">
-                <div class="reward-card">
-                    <h4>Rewards</h4>
-                    <div class="reward-list" id="rewardList">
-                        <div class="reward-item">
-                            <span class="reward-name">🎮 30 min gaming</span>
-                            <span class="reward-cost">150 pts</span>
-                            <button class="redeem-btn" data-cost="150" data-reward="30 min gaming">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🍕 Order takeout</span>
-                            <span class="reward-cost">75 pts</span>
-                            <button class="redeem-btn" data-cost="75" data-reward="Order takeout">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🎬 Movie night</span>
-                            <span class="reward-cost">120 pts</span>
-                            <button class="redeem-btn" data-cost="120" data-reward="Movie night">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🛍️ Shopping spree</span>
-                            <span class="reward-cost">300 pts</span>
-                            <button class="redeem-btn" data-cost="300" data-reward="Shopping spree">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🍽️ Skip dishes for a day</span>
-                            <span class="reward-cost">100 pts</span>
-                            <button class="redeem-btn" data-cost="100" data-reward="Skip dishes for a day">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🍰 Fancy dessert</span>
-                            <span class="reward-cost">90 pts</span>
-                            <button class="redeem-btn" data-cost="90" data-reward="Fancy dessert">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🎯 Skip one chore</span>
-                            <span class="reward-cost">120 pts</span>
-                            <button class="redeem-btn" data-cost="120" data-reward="Skip one chore">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">💆‍♀️ Spa day</span>
-                            <span class="reward-cost">225 pts</span>
-                            <button class="redeem-btn" data-cost="225" data-reward="Spa day">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🎪 Fun activity</span>
-                            <span class="reward-cost">180 pts</span>
-                            <button class="redeem-btn" data-cost="180" data-reward="Fun activity">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🏆 Bragging rights</span>
-                            <span class="reward-cost">300 pts</span>
-                            <button class="redeem-btn" data-cost="300" data-reward="Bragging rights">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🎁 Choose next week's challenge</span>
-                            <span class="reward-cost">450 pts</span>
-                            <button class="redeem-btn" data-cost="450" data-reward="Choose next week's challenge">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🍦 Ice cream treat</span>
-                            <span class="reward-cost">45 pts</span>
-                            <button class="redeem-btn" data-cost="45" data-reward="Ice cream treat">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🍿 Movie with popcorn</span>
-                            <span class="reward-cost">105 pts</span>
-                            <button class="redeem-btn" data-cost="105" data-reward="Movie with popcorn">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🎮 Extra gaming time (1 hour)</span>
-                            <span class="reward-cost">120 pts</span>
-                            <button class="redeem-btn" data-cost="120" data-reward="Extra gaming time (1 hour)">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🍕 Pizza night</span>
-                            <span class="reward-cost">135 pts</span>
-                            <button class="redeem-btn" data-cost="135" data-reward="Pizza night">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🎯 Skip one chore</span>
-                            <span class="reward-cost">120 pts</span>
-                            <button class="redeem-btn" data-cost="120" data-reward="Skip one chore">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🍰 Bake cookies together</span>
-                            <span class="reward-cost">90 pts</span>
-                            <button class="redeem-btn" data-cost="90" data-reward="Bake cookies together">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🎪 Go to the park</span>
-                            <span class="reward-cost">75 pts</span>
-                            <button class="redeem-btn" data-cost="75" data-reward="Go to the park">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🎨 Art supplies shopping</span>
-                            <span class="reward-cost">180 pts</span>
-                            <button class="redeem-btn" data-cost="180" data-reward="Art supplies shopping">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🍔 Fast food dinner</span>
-                            <span class="reward-cost">90 pts</span>
-                            <button class="redeem-btn" data-cost="90" data-reward="Fast food dinner">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🎵 Music streaming subscription</span>
-                            <span class="reward-cost">240 pts</span>
-                            <button class="redeem-btn" data-cost="240" data-reward="Music streaming subscription">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">📱 Extra screen time (2 hours)</span>
-                            <span class="reward-cost">105 pts</span>
-                            <button class="redeem-btn" data-cost="105" data-reward="Extra screen time (2 hours)">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🎪 Theme park visit</span>
-                            <span class="reward-cost">600 pts</span>
-                            <button class="redeem-btn" data-cost="600" data-reward="Theme park visit">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🏆 Trophy for room</span>
-                            <span class="reward-cost">360 pts</span>
-                            <button class="redeem-btn" data-cost="360" data-reward="Trophy for room">Redeem</button>
-                        </div>
-                        <div class="reward-item">
-                            <span class="reward-name">🎁 Surprise gift</span>
-                            <span class="reward-cost">270 pts</span>
-                            <button class="redeem-btn" data-cost="270" data-reward="Surprise gift">Redeem</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="consequence-card">
-                    <h4>Consequences</h4>
-                    <div class="consequence-list" id="consequenceList">
-                        <div class="consequence-item">
-                            <span class="consequence-name">📱 No phone for 1 hour</span>
-                            <span class="consequence-trigger">Miss 3 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🧹 Extra cleaning</span>
-                            <span class="consequence-trigger">Miss 5 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🚫 No treats for a day</span>
-                            <span class="consequence-trigger">Miss 7 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">💸 Pay fine ($5)</span>
-                            <span class="consequence-trigger">Miss 10 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🍽️ Wash all dishes by hand</span>
-                            <span class="consequence-trigger">Miss 2 dish chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🧽 Deep clean kitchen</span>
-                            <span class="consequence-trigger">Miss 4 dish chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🧽 Deep clean bathroom</span>
-                            <span class="consequence-trigger">Miss 3 bathroom chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🧹 Clean entire house</span>
-                            <span class="consequence-trigger">Miss 8 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">💰 Extra chores for others</span>
-                            <span class="consequence-trigger">Miss 6 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">📱 No devices for 2 hours</span>
-                            <span class="consequence-trigger">Miss 4 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🚫 No dessert for 2 days</span>
-                            <span class="consequence-trigger">Miss 5 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🧹 Deep clean bedroom</span>
-                            <span class="consequence-trigger">Miss 3 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">📚 Write apology letter</span>
-                            <span class="consequence-trigger">Miss 7 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">⏰ Early bedtime (8 PM)</span>
-                            <span class="consequence-trigger">Miss 4 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🧽 Clean all windows</span>
-                            <span class="consequence-trigger">Miss 3 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🚫 No friends over</span>
-                            <span class="consequence-trigger">Miss 6 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">💸 Pay fine ($10)</span>
-                            <span class="consequence-trigger">Miss 12 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🧹 Organize entire closet</span>
-                            <span class="consequence-trigger">Miss 4 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">📱 No social media for 1 day</span>
-                            <span class="consequence-trigger">Miss 3 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🧽 Clean refrigerator</span>
-                            <span class="consequence-trigger">Miss 3 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🚫 No TV for 1 day</span>
-                            <span class="consequence-trigger">Miss 4 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🧹 Vacuum entire house</span>
-                            <span class="consequence-trigger">Miss 5 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">📚 Read for 1 hour</span>
-                            <span class="consequence-trigger">Miss 3 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🧽 Clean oven</span>
-                            <span class="consequence-trigger">Miss 4 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🚫 No snacks for 1 day</span>
-                            <span class="consequence-trigger">Miss 3 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🧹 Clean garage</span>
-                            <span class="consequence-trigger">Miss 6 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">📱 No phone for 2 hours</span>
-                            <span class="consequence-trigger">Miss 2 chores</span>
-                        </div>
-                        <div class="consequence-item">
-                            <span class="consequence-name">🧽 Clean all bathrooms</span>
-                            <span class="consequence-trigger">Miss 4 chores</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        </div>
+    <!-- MY WEEK -->
+    <div id="kid-week" class="tabpane" hidden>
+      <h2>📅 My Week</h2>
+      <div id="weekCards" class="week-cards"></div>
+      <div class="stat-row">
+        <div class="stat-card"><div class="stat-num" id="wkPoints">0</div><div class="stat-lbl">points this week</div></div>
+        <div class="stat-card"><div class="stat-num" id="wkMoney">$0.00</div><div class="stat-lbl">earned this week</div></div>
+      </div>
     </div>
-    
-    <script src="script.js"></script>
+
+    <!-- LEADERBOARD -->
+    <div id="kid-board" class="tabpane" hidden>
+      <h2>🏆 Family Leaderboard</h2>
+      <p class="muted">This week's points — updates live ✨</p>
+      <div id="leaderList" class="leaderboard-list"></div>
+      <h2>🎯 Weekly Challenge</h2>
+      <div class="challenge-card">
+        <div id="challengeLabel" class="challenge-label"></div>
+        <div class="progress-bar"><div id="challengeFill" class="progress-fill"></div></div>
+        <div id="challengeText" class="progress-text"></div>
+      </div>
+    </div>
+
+    <!-- REWARDS -->
+    <div id="kid-rewards" class="tabpane" hidden>
+      <h2>🎁 Rewards</h2>
+      <p class="muted">Spend your points! Tap "I want this" and Mom approves it.</p>
+      <div class="stat-row">
+        <div class="stat-card"><div class="stat-num" id="rwPoints">0</div><div class="stat-lbl">my lifetime points</div></div>
+        <div class="stat-card"><div class="stat-num" id="rwMoney">$0.00</div><div class="stat-lbl">earned all-time</div></div>
+      </div>
+      <div id="rewardList"></div>
+      <h3>📦 My claims</h3>
+      <div id="claimList"></div>
+    </div>
+  </section>
+
+  <!-- ================= PARENT ================= -->
+  <section id="view-parent" class="view" hidden>
+    <header class="topbar">
+      <div>
+        <div class="greeting">👩‍💼 Parent Dashboard</div>
+        <div class="streak-line" id="parentDateLine"></div>
+      </div>
+      <div class="topbar-actions">
+        <button id="parSwitch" class="icon-btn" title="Switch profile">🔄</button>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button data-tab="overview" class="tab active">👀 Overview</button>
+      <button data-tab="payouts" class="tab">💵 Payouts</button>
+      <button data-tab="reports" class="tab">📊 Reports</button>
+      <button data-tab="settings" class="tab">⚙️ Settings</button>
+    </nav>
+
+    <div id="par-overview" class="tabpane">
+      <h2>👀 Today — live</h2>
+      <div id="parKidCards"></div>
+      <h2>📦 Reward claims to review</h2>
+      <div id="parClaims"></div>
+    </div>
+
+    <div id="par-payouts" class="tabpane" hidden>
+      <h2>💵 Weekly Payout</h2>
+      <div class="week-nav">
+        <button id="payPrev" class="icon-btn">◀</button>
+        <div id="payWeekLabel" class="week-label"></div>
+        <button id="payNext" class="icon-btn">▶</button>
+      </div>
+      <div id="payoutCards"></div>
+    </div>
+
+    <div id="par-reports" class="tabpane" hidden>
+      <h2>📊 Reports</h2>
+      <label class="fld">Day <input type="date" id="repDate"></label>
+      <div id="repTables"></div>
+    </div>
+
+    <div id="par-settings" class="tabpane" hidden>
+      <h2>⚙️ Settings</h2>
+
+      <div class="card">
+        <h3>💰 Money rates <span class="muted-sm">(per completed item)</span></h3>
+        <div class="grid2">
+          <label class="fld">Per chore $<input type="number" id="setPerChore" step="0.05" min="0"></label>
+          <label class="fld">Per homework $<input type="number" id="setPerHomework" step="0.05" min="0"></label>
+          <label class="fld">Per practice $<input type="number" id="setPerPractice" step="0.05" min="0"></label>
+          <label class="fld">Per routine item $<input type="number" id="setPerRoutine" step="0.05" min="0"></label>
+          <label class="fld">7-day streak bonus $<input type="number" id="setStreakBonus" step="0.25" min="0"></label>
+          <label class="fld">Gaming penalty $<input type="number" id="setGamingPenalty" step="0.25"></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>⭐ Points rates</h3>
+        <div class="grid2">
+          <label class="fld">Per chore <input type="number" id="setPtChore" min="0"></label>
+          <label class="fld">Per homework <input type="number" id="setPtHomework" min="0"></label>
+          <label class="fld">Per practice <input type="number" id="setPtPractice" min="0"></label>
+          <label class="fld">Per routine item <input type="number" id="setPtRoutine" min="0"></label>
+          <label class="fld">7-day streak bonus <input type="number" id="setPtStreak" min="0"></label>
+          <label class="fld">Gaming penalty <input type="number" id="setPtGaming"></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🔑 PINs <span class="muted-sm">(4 digits — family gate, not bank security)</span></h3>
+        <div class="grid2" id="pinFields"></div>
+      </div>
+
+      <div class="card">
+        <h3>🧹 Daily chore template</h3>
+        <p class="muted-sm">These chores appear in every kid's mission each day.</p>
+        <div id="choreTplList"></div>
+        <div class="add-row"><input id="newChoreTpl" placeholder="New chore, e.g. Take out trash"><button id="addChoreTpl" class="small-btn">＋ Add</button></div>
+      </div>
+
+      <div class="card">
+        <h3>🌙 Evening routine template</h3>
+        <div id="routineTplList"></div>
+        <div class="add-row"><input id="newRoutineTpl" placeholder="New routine item"><button id="addRoutineTpl" class="small-btn">＋ Add</button></div>
+      </div>
+
+      <div class="card">
+        <h3>🎯 Weekly challenge</h3>
+        <label class="fld">Challenge <input type="text" id="setChLabel"></label>
+        <label class="fld">Target (total items, whole family) <input type="number" id="setChTarget" min="1"></label>
+      </div>
+
+      <div class="card">
+        <h3>🎁 Rewards catalog</h3>
+        <div id="rewardTplList"></div>
+        <div class="add-row"><input id="newRewardName" placeholder="Reward name"><input id="newRewardPts" type="number" placeholder="Points" min="1"><button id="addRewardTpl" class="small-btn">＋ Add</button></div>
+      </div>
+
+      <button id="saveSettings" class="big-btn">💾 Save all settings</button>
+      <p class="muted-sm" id="settingsSaved"></p>
+    </div>
+  </section>
+
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
