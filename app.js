@@ -942,14 +942,21 @@ $("saveSettings").onclick = async () => {
       await new Promise((res) => { const un = fauth.onAuthStateChanged((u) => { un(); res(u); }); });
     }
     const u = fauth.currentUser;
-    if (u && sessionStorage.getItem("sc_parent_intent")) {
-      sessionStorage.removeItem("sc_parent_intent");
-      if ((u.email || "") && (!CFG.parentGmail || CFG.parentGmail.toLowerCase() !== u.email.toLowerCase())) {
+    const intent = sessionStorage.getItem("sc_parent_intent");
+    if (u) sessionStorage.removeItem("sc_parent_intent");
+    const em = (u && u.email ? u.email : "").toLowerCase();
+    const registered = (CFG.parentGmail || "").toLowerCase();
+    if (u && em && (intent || !registered || em === registered)) {
+      // parent Gmail sign-in complete (tolerates a lost redirect flag):
+      // first Google signer claims the parent account; afterwards only that Gmail re-opens it
+      if (!registered) {
         CFG.parentGmail = u.email;
         await DB.set("config", CFG);
       }
       SESSION = { id: "parent", role: "parent" };
       sessionStorage.setItem("sc_session", JSON.stringify(SESSION));
+    } else if (u && em && registered && em !== registered && !SESSION) {
+      toast("That Gmail isn't the registered parent account 🙂");
     }
   }
   bootRole();
