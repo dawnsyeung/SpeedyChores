@@ -185,10 +185,22 @@ function blankDayRecord(kidId, kidName, cfg, date) {
   };
 }
 
+/* Firebase strips empty arrays on write, so keys like `homework` can come
+   back missing. Normalize every day record on read so renders never crash
+   on undefined collections. */
+function normalizeDayRecord(rec) {
+  if (!rec || typeof rec !== "object") return rec;
+  if (!Array.isArray(rec.homework)) rec.homework = [];
+  if (!Array.isArray(rec.chores)) rec.chores = [];
+  if (!rec.routine || typeof rec.routine !== "object") rec.routine = {};
+  if (!rec.gaming || typeof rec.gaming !== "object") rec.gaming = { answered: false, played: false, minutes: 0 };
+  return rec;
+}
+
 /* Every mission item must be done OR skipped-with-reason; gaming answered. */
 function missionProgress(rec) {
   const items = [];
-  rec.homework.forEach((h) => items.push(h));
+  (rec.homework || []).forEach((h) => items.push(h));
   rec.chores.forEach((c) => items.push(c));
   items.push(rec.practice);
   if (rec.practice2) items.push(rec.practice2);
@@ -202,7 +214,7 @@ function missionProgress(rec) {
 function computeScore(rec, cfg) {
   const r = cfg.rates, p = cfg.points;
   const nChores = rec.chores.filter((c) => c.done).length;
-  const nHw = rec.homework.filter((h) => h.done).length;
+  const nHw = (rec.homework || []).filter((h) => h.done).length;
   const nPractice = (rec.practice.done ? 1 : 0) + (rec.practice2 && rec.practice2.done ? 1 : 0);
   const nRoutine = Object.values(rec.routine).filter((x) => x.done).length;
   let money = nChores * r.perChore + nHw * r.perHomework + nPractice * r.perPractice + nRoutine * r.perRoutineItem;
@@ -380,8 +392,9 @@ async function renderKid() {
     rec = blankDayRecord(SESSION.id, kid.name, CFG, date);
     await DB.set(`days/${date}/${SESSION.id}`, rec);
   }
+  rec = normalizeDayRecord(rec);
   // live-sync this kid's record (e.g. parent reopens it on another device)
-  listen(`days/${date}/${SESSION.id}`, (v) => { if (v) { WORK = v; paintMission(); paintStreak(); } });
+  listen(`days/${date}/${SESSION.id}`, (v) => { if (v) { WORK = normalizeDayRecord(v); paintMission(); paintStreak(); } });
 }
 
 function paintStreak() {
@@ -480,7 +493,7 @@ function paintMission() {
   if (!WORK) return;
   const submitted = WORK.status === "submitted";
 
-  g.appendChild(groupCard("Homework", "📚", "homework", WORK.homework,
+  g.appendChild(groupCard("Homework", "📚", "homework", (WORK.homework || []),
     submitted ? {} : { add: "Add homework, e.g. Math worksheet", addSubject: true }));
   g.appendChild(groupCard("Chores", "🧹", "chores", WORK.chores,
     submitted ? {} : { add: "Add a chore" }));
@@ -834,10 +847,10 @@ async function renderReports() {
       <b>Status:</b> ${r.status}${r.submittedAt ? ` at ${new Date(r.submittedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}</p>`;
     wrap.appendChild(t);
     // parent homework-proof verification toggles
-    if (r.homework.length) {
+    if ((r.homework || []).length) {
       const v = document.createElement("div"); v.className = "muted-sm";
       v.textContent = "Tap to toggle photo-proof / verified:";
-      r.homework.forEach((x, i) => {
+      (r.homework || []).forEach((x, i) => {
         const b = document.createElement("button"); b.className = "small-btn"; b.style.margin = "2px";
         b.textContent = `${x.label}: ${x.proof ? "📷" : "no 📷"} ${x.verified ? "✔️" : ""}`;
         b.onclick = async () => {
