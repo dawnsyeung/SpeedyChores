@@ -559,19 +559,36 @@ function paintMission() {
   const note = $("submittedNote");
   if (submitted) {
     btn.hidden = true; note.hidden = false;
+    $("submitConfirm").hidden = true;
     note.innerHTML = `✅ Submitted at ${esc(new Date(WORK.submittedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }))} — you earned <b>${money(WORK.moneyEarned)}</b> and <b>${WORK.points} pts</b>! ${WORK.streakDays % 7 === 0 && WORK.streakDays > 0 ? "🔥 Streak bonus banked!" : ""}<br><span class="muted-sm">Need a change? Ask a parent to reopen today.</span>`;
   } else {
     btn.hidden = false; note.hidden = true;
     btn.disabled = !pr.complete;
+    if (!pr.complete) $("submitConfirm").hidden = true;
     btn.textContent = pr.complete ? "🚀 Done for today — submit!" : `🔒 Finish all items to submit (${pr.total - pr.resolved} left)`;
   }
 }
 
-$("submitDay").onclick = async () => {
+$("submitDay").onclick = () => {
   if (!WORK || WORK.status === "submitted") return;
   const pr = missionProgress(WORK);
   if (!pr.complete) { toast("Resolve every item first 🙂"); return; }
-  if (!confirm("Submit today's mission? This locks it in!")) return;
+  showSubmitConfirm();
+};
+
+function showSubmitConfirm() {
+  const box = $("submitConfirm");
+  box.hidden = false;
+  box.innerHTML = `<div class="sc-text">Lock in today's mission? You can't undo this — only a parent can reopen it.</div>` +
+    `<div class="sc-actions"><button class="small-btn" id="scYes">Yes, submit! 🎉</button><button class="cancel-btn" id="scNo">Not yet</button></div>`;
+  $("scYes").onclick = doSubmitDay;
+  $("scNo").onclick = () => { box.hidden = true; };
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+async function doSubmitDay() {
+  $("submitConfirm").hidden = true;
+  if (!WORK || WORK.status === "submitted") return;
   // streak: consecutive submitted days
   const y = await DB.get(`days/${addDays(WORK.date, -1)}/${WORK.kidId}`);
   WORK.streakDays = y && y.status === "submitted" ? (y.streakDays || 0) + 1 : 1;
@@ -742,7 +759,15 @@ function renderOverview() {
       const row = document.createElement("div"); row.className = "add-row";
       if (rec && rec.status === "submitted") {
         const rb = document.createElement("button"); rb.className = "small-btn"; rb.textContent = "🔓 Reopen day";
-        rb.onclick = async () => { if (confirm(`Reopen ${k.name}'s day?`)) await DB.update(`days/${date}/${id}`, { status: "open" }); };
+        rb.onclick = async () => {
+          if (rb.dataset.armed) {
+            delete rb.dataset.armed; rb.textContent = "🔓 Reopen day";
+            await DB.update(`days/${date}/${id}`, { status: "open" });
+          } else {
+            rb.dataset.armed = "1"; rb.textContent = "⚠️ Tap again to reopen";
+            setTimeout(() => { if (rb.isConnected) { delete rb.dataset.armed; rb.textContent = "🔓 Reopen day"; } }, 6000);
+          }
+        };
         row.appendChild(rb);
       }
       const vb = document.createElement("button"); vb.className = "small-btn"; vb.textContent = "📊 View details";
@@ -881,12 +906,14 @@ async function renderReports() {
     // parent homework-proof verification toggles
     if ((r.homework || []).length) {
       const v = document.createElement("div"); v.className = "muted-sm";
-      v.textContent = "Tap to toggle photo-proof / verified:";
+      v.textContent = "Tap a button to cycle: no proof → 📷 photo → ✔️ verified:";
       (r.homework || []).forEach((x, i) => {
         const b = document.createElement("button"); b.className = "small-btn"; b.style.margin = "2px";
         b.textContent = `${x.label}: ${x.proof ? "📷" : "no 📷"} ${x.verified ? "✔️" : ""}`;
         b.onclick = async () => {
-          x.proof = !x.proof; if (!x.proof) x.verified = false; else if (x.proof && !x.verified && confirm("Mark as VERIFIED (you checked it)?")) x.verified = true;
+          if (!x.proof) x.proof = true;
+          else if (!x.verified) x.verified = true;
+          else { x.proof = false; x.verified = false; }
           await DB.set(`days/${date}/${id}`, r); renderReports();
         };
         v.appendChild(b);

@@ -97,6 +97,9 @@ h1,h2,h3{margin:.6em 0 .4em;}
 .inline-editor{display:flex; gap:8px; margin:8px 0 4px; padding:0 2px;}
 .inline-editor input{flex:1; border:2px solid #e6e2f7; border-radius:12px; padding:10px; font-size:.95rem; min-width:0;}
 .inline-editor .cancel-btn{background:#efeaf9; color:var(--ink); border:none; border-radius:12px; padding:10px 14px; font-weight:700; cursor:pointer;}
+.submit-confirm{margin-top:10px; border:2px solid #e6e2f7; border-radius:14px; padding:12px; background:#fbfaff;}
+.sc-text{font-weight:600; margin-bottom:10px;}
+.sc-actions{display:flex; gap:8px;}
 .small-btn{background:var(--pri); color:#fff; border:none; border-radius:12px; padding:10px 14px; font-weight:700; cursor:pointer;}
 .big-btn{
   width:100%; border:none; border-radius:var(--radius); padding:16px; font-size:1.1rem; font-weight:800;
